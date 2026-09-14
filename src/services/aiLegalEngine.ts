@@ -504,3 +504,156 @@ export function generateLawyerPrepPackage(doc: LegalDocument, clientName: string
     }))
   };
 }
+
+/**
+ * AI Negotiation Coach: generates a clause-by-clause negotiation playbook
+ * using Gemini 1.5 Flash. For each high-risk clause, provides a BATNA
+ * (Best Alternative To Negotiated Agreement), opening position, and
+ * jurisdiction-aware enforceability note.
+ * Falls back to a structured heuristic playbook if Gemini is unavailable.
+ * @param doc - The analyzed legal document with identified risk clauses
+ * @param jurisdiction - User's jurisdiction (state/country) for law-specific advice
+ * @param apiKey - Optional Gemini API key
+ * @returns Array of negotiation plays per clause
+ */
+export interface NegotiationPlay {
+  clauseTitle: string;
+  riskLevel: RiskLevel;
+  openingPosition: string;
+  batna: string;
+  jurisdictionNote: string;
+  toneGuidance: string;
+  successProbability: 'high' | 'medium' | 'low';
+}
+
+export async function generateNegotiationCoach(
+  doc: LegalDocument,
+  jurisdiction: string = 'General US',
+  apiKey?: string
+): Promise<NegotiationPlay[]> {
+  const highRiskClauses = doc.clauses.filter(c => c.riskLevel === 'high' || c.riskLevel === 'medium');
+
+  if (apiKey && apiKey.trim().length > 10 && highRiskClauses.length > 0) {
+    const clauseSummary = highRiskClauses.map((c, i) =>
+      `Clause ${i + 1}: "${c.title}" — Risk: ${c.riskLevel.toUpperCase()}\nText: ${c.originalText.substring(0, 200)}\nCurrent recommendation: ${c.recommendation}`
+    ).join('\n\n');
+
+    const prompt = `You are a professional legal negotiation coach. Analyze these contract clauses and provide a negotiation playbook.
+Respond ONLY with valid JSON array (no markdown, no extra text):
+[
+  {
+    "clauseTitle": "exact clause title",
+    "riskLevel": "high|medium|low",
+    "openingPosition": "opening negotiation statement to make to the other party",
+    "batna": "Best Alternative if they refuse to budge on this clause",
+    "jurisdictionNote": "specific enforceability note for ${jurisdiction} jurisdiction",
+    "toneGuidance": "recommended negotiation tone: collaborative|firm|walk-away",
+    "successProbability": "high|medium|low"
+  }
+]
+
+Jurisdiction: ${jurisdiction}
+Document Type: ${doc.documentType}
+
+CLAUSES TO ANALYZE:
+${clauseSummary}`;
+
+    try {
+      const response = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 1500 }
+          })
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]';
+        const cleaned = rawText.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+        const plays = JSON.parse(cleaned) as NegotiationPlay[];
+        return plays;
+      }
+    } catch (e) {
+      console.warn('Negotiation coach Gemini call failed, using fallback:', e);
+    }
+  }
+
+  // Heuristic fallback: generate structured plays from existing clause data
+  return highRiskClauses.map(c => ({
+    clauseTitle: c.title,
+    riskLevel: c.riskLevel,
+    openingPosition: `We would like to propose modifying this clause: "${c.counterProposalText || c.recommendation}"`,
+    batna: 'If refused, consult a licensed attorney about jurisdiction-specific enforceability before signing.',
+    jurisdictionNote: `Verify enforceability in ${jurisdiction} with a local attorney before proceeding.`,
+    toneGuidance: c.riskLevel === 'high' ? 'firm' : 'collaborative',
+    successProbability: c.riskLevel === 'high' ? 'medium' : 'high'
+  }));
+}
+
+/**
+ * Scores a legal document's plain-language readability using a
+ * Flesch-Kincaid approximation. Higher scores = more accessible to non-lawyers.
+ * Provides improvement suggestions and a grade level estimate.
+ * @param text - Raw document text to score
+ * @returns Readability score (0-100), grade level, and improvement tips
+ */
+export interface ReadabilityScore {
+  score: number;           // 0-100 (100 = most readable)
+  gradeLevel: string;      // e.g. "Grade 12", "College Level"
+  wordCount: number;
+  avgWordsPerSentence: number;
+  avgSyllablesPerWord: number;
+  legalJargonCount: number;
+  suggestions: string[];
+}
+
+export function scoreDocumentReadability(text: string): ReadabilityScore {
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 5);
+  const words = text.split(/\s+/).filter(w => w.length > 0);
+  const wordCount = words.length;
+  const avgWordsPerSentence = wordCount / Math.max(sentences.length, 1);
+
+  // Rough syllable counter
+  const countSyllables = (word: string): number => {
+    word = word.toLowerCase().replace(/[^a-z]/g, '');
+    if (word.length <= 3) return 1;
+    const vowelGroups = word.match(/[aeiouy]+/g);
+    return Math.max(1, vowelGroups ? vowelGroups.length : 1);
+  };
+  const totalSyllables = words.reduce((sum, w) => sum + countSyllables(w), 0);
+  const avgSyllablesPerWord = totalSyllables / Math.max(wordCount, 1);
+
+  // Count legal jargon
+  const LEGAL_JARGON = ['indemnify','indemnification','hereinafter','whereas','notwithstanding','aforementioned',
+    'thereto','hereof','herein','thereunder','liquidated damages','force majeure','severability',
+    'ipso facto','bona fide','prima facie','inter alia','de facto','mens rea','habeas corpus',
+    'waiver','estoppel','tort','statute of limitations','injunction'];
+  const lowerText = text.toLowerCase();
+  const legalJargonCount = LEGAL_JARGON.filter(term => lowerText.includes(term)).length;
+
+  // Flesch Reading Ease approximation (206.835 - 1.015*ASL - 84.6*ASW)
+  const fleschRaw = 206.835 - (1.015 * avgWordsPerSentence) - (84.6 * avgSyllablesPerWord);
+  const score = Math.max(0, Math.min(100, Math.round(fleschRaw)));
+
+  let gradeLevel: string;
+  if (score >= 90) gradeLevel = 'Grade 5 (Very Easy)';
+  else if (score >= 70) gradeLevel = 'Grade 7 (Easy)';
+  else if (score >= 50) gradeLevel = 'Grade 10 (Standard)';
+  else if (score >= 30) gradeLevel = 'Grade 12 (Difficult)';
+  else if (score >= 10) gradeLevel = 'College Level (Very Difficult)';
+  else gradeLevel = 'Law School Level (Extremely Difficult)';
+
+  const suggestions: string[] = [];
+  if (avgWordsPerSentence > 25) suggestions.push('Break long sentences into shorter ones (target under 20 words).');
+  if (avgSyllablesPerWord > 1.8) suggestions.push('Replace polysyllabic legal terms with plain alternatives.');
+  if (legalJargonCount > 5) suggestions.push(`${legalJargonCount} legal jargon terms detected — ask for plain-language definitions in the contract.`);
+  if (score < 30) suggestions.push('This document is written at Law School reading level — consider requesting a plain-English summary addendum.');
+  if (suggestions.length === 0) suggestions.push('Document readability is within acceptable range for informed consumers.');
+
+  return { score, gradeLevel, wordCount, avgWordsPerSentence: Math.round(avgWordsPerSentence * 10) / 10, avgSyllablesPerWord: Math.round(avgSyllablesPerWord * 100) / 100, legalJargonCount, suggestions };
+}

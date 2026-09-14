@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   AlertTriangle, 
   ShieldCheck, 
@@ -6,9 +6,11 @@ import {
   Copy, 
   Check, 
   Sparkles, 
-  TrendingDown
+  TrendingDown,
+  BookOpen
 } from 'lucide-react';
 import type { LegalDocument, ClauseAnalysis } from '../types/legal';
+import { scoreDocumentReadability } from '../services/aiLegalEngine';
 
 interface RiskRadarProps {
   document: LegalDocument;
@@ -28,6 +30,9 @@ export const RiskRadar: React.FC<RiskRadarProps> = ({
   const highRisks = clauses.filter(c => c.riskLevel === 'high');
   const medRisks = clauses.filter(c => c.riskLevel === 'medium');
   const lowRisks = clauses.filter(c => c.riskLevel === 'low' || c.riskLevel === 'info');
+
+  // Compute document readability score
+  const readability = useMemo(() => scoreDocumentReadability(document.content), [document.content]);
 
   const filteredClauses = clauses.filter(c => {
     if (filterRisk === 'high') return c.riskLevel === 'high';
@@ -81,6 +86,42 @@ export const RiskRadar: React.FC<RiskRadarProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-success)' }}>
               <ShieldCheck size={15} />
               <span>{lowRisks.length} Standard/Safe</span>
+            </div>
+          </div>
+
+          {/* Readability Score Strip */}
+          <div style={{
+            marginTop: '0.75rem',
+            padding: '0.5rem 0.75rem',
+            background: readability.score < 30 ? '#fef2f2' : readability.score < 50 ? '#fffbeb' : '#f0fdf4',
+            borderRadius: 'var(--radius-sm)',
+            border: `1px solid ${readability.score < 30 ? '#fecaca' : readability.score < 50 ? '#fde68a' : '#bbf7d0'}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+            flexWrap: 'wrap'
+          }}>
+            <BookOpen size={14} style={{ color: readability.score < 30 ? 'var(--color-danger)' : readability.score < 50 ? '#b45309' : 'var(--color-success)', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.15rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Readability:</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: readability.score < 30 ? 'var(--color-danger)' : readability.score < 50 ? '#b45309' : 'var(--color-success)' }}>
+                  {readability.gradeLevel}
+                </span>
+                <span style={{ fontSize: '0.72rem', background: 'var(--bg-subtle)', padding: '0.05rem 0.35rem', borderRadius: '4px', fontWeight: 600 }}>
+                  Score: {readability.score}/100
+                </span>
+                {readability.legalJargonCount > 0 && (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    • {readability.legalJargonCount} jargon term{readability.legalJargonCount > 1 ? 's' : ''} detected
+                  </span>
+                )}
+              </div>
+              {readability.suggestions[0] && (
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  💡 {readability.suggestions[0]}
+                </div>
+              )}
             </div>
           </div>
         </div>
