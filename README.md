@@ -177,11 +177,11 @@ For users without a Gemini API key, a zero-latency client-side NLP engine provid
 - **Sub-Second Build**: Vite 5 produces an optimized production bundle in ~900ms.
 
 ### 4. Testing 🧪
-- **57 Unit & Component Tests** across 6 test suites — Vitest + React Testing Library + happy-dom.
+- **71 Unit & Component Tests** across 6 test suites — Vitest + React Testing Library + happy-dom.
 
 | Test File | Tests | Coverage |
 |---|---|---|
-| `aiLegalEngine.test.ts` | 26 | Injection sanitizer, NLP analyzer, risk scores, comparator, lawyer brief, sample data |
+| `aiLegalEngine.test.ts` | 40 | Gemini AI engine, fallback engine, injection sanitizer, Flesch-Kincaid readability scorer, negotiation coach, risk scores, comparator, lawyer brief, sample data |
 | `Components.test.tsx` | 11 | ErrorBoundary, Navbar, ApiKeyModal, ProblemAlignmentModal |
 | `ContractComparison.test.tsx` | 4 | Side-by-side diff, doc selection, risk shift |
 | `LegalGlossary.test.tsx` | 4 | Rendering, search, filters |
@@ -189,7 +189,7 @@ For users without a Gemini API key, a zero-latency client-side NLP engine provid
 | `AnalyzerAndChat.test.tsx` | 7 | Risk radar, filter chips, editor, Q&A chat |
 
 ```bash
-npm test           # Run all 57 tests
+npm test           # Run all 71 tests
 npm run test:watch # Watch mode
 ```
 
