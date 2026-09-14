@@ -115,6 +115,7 @@ export const App: React.FC = () => {
               <DocumentAnalyzer
                 document={selectedDoc}
                 onUpdateDocument={handleUpdateDocument}
+                apiKey={apiKey}
               />
             )}
 

@@ -36,6 +36,8 @@ export interface LegalDocument {
   riskScore: number; // 0 to 100 (100 = low risk / very safe, 0 = extreme risk)
   clauses: ClauseAnalysis[];
   keyObligations: ObligationItem[];
+  /** True when the document was analyzed by Google Gemini AI (vs. the local heuristic fallback engine) */
+  analyzedByGemini?: boolean;
 }
 
 export interface ObligationItem {

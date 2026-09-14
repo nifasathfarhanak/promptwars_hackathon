@@ -192,6 +192,124 @@ export function analyzeDocumentHeuristic(rawText: string, title: string = 'Uploa
 }
 
 /**
+ * Performs full AI-powered legal document analysis using Google Gemini 1.5 Flash.
+ * Sends the document to Gemini with structured prompting to extract clause risks,
+ * generate plain-English summaries, and produce an overall safety score.
+ * Falls back to heuristic engine if API call fails.
+ * @param rawText - Raw document text content to analyze
+ * @param title - Document display title
+ * @param apiKey - Google Gemini API key for live LLM analysis
+ * @returns AI-analyzed LegalDocument (or heuristic fallback on error)
+ */
+export async function analyzeDocumentWithGemini(
+  rawText: string,
+  title: string,
+  apiKey: string
+): Promise<LegalDocument> {
+  const { safeText: safeDoc } = sanitizeLegalPrompt(rawText.substring(0, 8000));
+
+  try {
+    const prompt = `You are LexiGuard AI, an expert legal document risk analyzer.
+Analyze the following legal document and respond with ONLY valid JSON matching this exact schema (no markdown, no extra text):
+{
+  "summary": "2-sentence plain-English executive summary of document risk",
+  "riskScore": <number 0-100 where 100 = safest>,
+  "clauses": [
+    {
+      "title": "Clause title (max 6 words)",
+      "originalText": "verbatim clause snippet (max 200 chars)",
+      "simplifiedText": "plain-English explanation (max 150 chars)",
+      "riskLevel": "high|medium|low|info",
+      "category": "liability|financial|renewal|intellectual_property|obligations|dispute_resolution|general",
+      "whyItMatters": "why this clause matters to the user (max 120 chars)",
+      "recommendation": "actionable negotiation advice (max 120 chars)",
+      "counterProposalText": "better phrasing they could propose (max 120 chars)",
+      "benchmarkComparison": "industry norm comparison (max 100 chars)"
+    }
+  ]
+}
+
+RULES:
+- Identify all high-risk clauses (non-competes, broad indemnification, auto-renewals, deposit forfeitures, IP overreach).
+- Keep summaries plain, direct, and accessible to a non-lawyer.
+- Flag at least 2-3 clauses with riskLevel "high" if they exist.
+- Return between 3 and 8 clauses total.
+- riskScore: 100=safest. Subtract 20 per high-risk clause, 8 per medium.
+
+DOCUMENT TITLE: ${title}
+DOCUMENT TEXT:
+${safeDoc}`;
+
+    const response = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
+        })
+      }
+    );
+
+    if (!response.ok) throw new Error(`Gemini API error: ${response.status}`);
+
+    const data = await response.json();
+    const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+
+    // Strip potential markdown code fences
+    const cleaned = rawJson.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+
+    const clauses: ClauseAnalysis[] = (parsed.clauses ?? []).map((c: Record<string, string>, i: number) => ({
+      id: `gemini-clause-${i}`,
+      title: c.title ?? 'Unknown Clause',
+      originalText: c.originalText ?? '',
+      simplifiedText: c.simplifiedText ?? '',
+      riskLevel: (c.riskLevel as RiskLevel) ?? 'info',
+      category: (c.category as ClauseAnalysis['category']) ?? 'general',
+      lineNumberStart: i * 5 + 1,
+      lineNumberEnd: i * 5 + 5,
+      whyItMatters: c.whyItMatters ?? '',
+      recommendation: c.recommendation ?? '',
+      counterProposalText: c.counterProposalText ?? '',
+      benchmarkComparison: c.benchmarkComparison ?? ''
+    }));
+
+    const riskScore = Math.max(15, Math.min(100, Number(parsed.riskScore) || 50));
+
+    return {
+      id: `doc-gemini-${Date.now()}`,
+      title,
+      documentType: 'custom',
+      content: rawText,
+      uploadedAt: new Date().toISOString().split('T')[0],
+      summary: parsed.summary ?? `AI-analyzed document with ${clauses.length} clauses identified.`,
+      riskScore,
+      clauses,
+      keyObligations: [
+        {
+          id: 'ob-ai-1',
+          title: 'Review AI-Flagged High Risk Clauses',
+          partyResponsible: 'You',
+          dueDateOrFrequency: 'Before signing',
+          description: 'Address clauses flagged by Gemini AI with counter-proposals before signing.',
+          category: 'notice',
+          isCompleted: false
+        }
+      ],
+      analyzedByGemini: true
+    };
+  } catch (e) {
+    console.warn('Gemini analysis failed, falling back to heuristic engine:', e);
+    return analyzeDocumentHeuristic(rawText, title);
+  }
+}
+
+/**
  * Answers user questions grounded in the provided legal document.
  * Uses Google Gemini API when an API key is available, otherwise
  * falls back to a client-side heuristic Q&A engine.
