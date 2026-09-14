@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { Navbar } from '../components/Navbar';
 import { ApiKeyModal } from '../components/ApiKeyModal';
+import { ProblemAlignmentModal } from '../components/ProblemAlignmentModal';
 
 // Problematic component that triggers an error for ErrorBoundary testing
 const ThrowingComponent = () => {
@@ -82,6 +83,23 @@ describe('Navbar Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Gemini API Settings/i }));
     expect(onOpenModal).toHaveBeenCalledTimes(1);
   });
+
+  it('should trigger onOpenAlignmentModal when alignment button is clicked', () => {
+    const setActiveTab = vi.fn();
+    const onOpenModal = vi.fn();
+    const onOpenAlignment = vi.fn();
+    render(
+      <Navbar
+        activeTab="analyzer"
+        setActiveTab={setActiveTab}
+        onOpenApiKeyModal={onOpenModal}
+        onOpenAlignmentModal={onOpenAlignment}
+        hasApiKey={false}
+      />
+    );
+    fireEvent.click(screen.getByText(/Alignment Matrix/i));
+    expect(onOpenAlignment).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('ApiKeyModal Component', () => {
@@ -129,6 +147,45 @@ describe('ApiKeyModal Component', () => {
     fireEvent.change(input, { target: { value: 'AIzaSyTestApiKey12345' } });
     fireEvent.click(screen.getByText(/Save Key/i));
     expect(onSave).toHaveBeenCalledWith('AIzaSyTestApiKey12345');
+    expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('ProblemAlignmentModal Component', () => {
+  it('should render all 7 use cases when isOpen is true', () => {
+    const onClose = vi.fn();
+    const onNavigate = vi.fn();
+    render(
+      <ProblemAlignmentModal
+        isOpen={true}
+        onClose={onClose}
+        onNavigateTab={onNavigate}
+      />
+    );
+    expect(screen.getByText(/Problem Statement Alignment & Capabilities/i)).toBeInTheDocument();
+    expect(screen.getByText(/1\. Simplifying Complex Legal Documents/i)).toBeInTheDocument();
+    expect(screen.getByText(/2\. Comparing Contracts, Agreements, or Policies/i)).toBeInTheDocument();
+    expect(screen.getByText(/3\. Highlighting Clauses, Obligations, Risks, or Inconsistencies/i)).toBeInTheDocument();
+    expect(screen.getByText(/4\. Answering Questions Based on Provided Documents/i)).toBeInTheDocument();
+    expect(screen.getByText(/5\. Helping Users Understand Options & Next Steps/i)).toBeInTheDocument();
+    expect(screen.getByText(/6\. Generating Summaries, Checklists, & Actionable Outputs/i)).toBeInTheDocument();
+    expect(screen.getByText(/7\. Preparing Information or Questions for a Legal Professional/i)).toBeInTheDocument();
+  });
+
+  it('should trigger onNavigateTab and onClose when clicking a feature navigation button', () => {
+    const onClose = vi.fn();
+    const onNavigate = vi.fn();
+    render(
+      <ProblemAlignmentModal
+        isOpen={true}
+        onClose={onClose}
+        onNavigateTab={onNavigate}
+      />
+    );
+    const viewFeatureBtns = screen.getAllByText(/View Feature ➔/i);
+    expect(viewFeatureBtns.length).toBe(7);
+    fireEvent.click(viewFeatureBtns[0]);
+    expect(onNavigate).toHaveBeenCalledWith('analyzer');
     expect(onClose).toHaveBeenCalled();
   });
 });

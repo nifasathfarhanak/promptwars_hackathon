@@ -2,6 +2,7 @@ import React, { useState, useCallback, Suspense, lazy } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Navbar } from './components/Navbar';
 import { ApiKeyModal } from './components/ApiKeyModal';
+import { ProblemAlignmentModal } from './components/ProblemAlignmentModal';
 import { SAMPLE_DOCUMENTS } from './data/sampleDocuments';
 import type { LegalDocument } from './types/legal';
 
@@ -45,6 +46,7 @@ export const App: React.FC = () => {
     }
   });
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState<boolean>(false);
+  const [isAlignmentModalOpen, setIsAlignmentModalOpen] = useState<boolean>(false);
 
   const handleSaveApiKey = useCallback((key: string) => {
     setApiKey(key);
@@ -63,6 +65,10 @@ export const App: React.FC = () => {
     setSelectedDoc(doc);
   }, []);
 
+  const handleNavigateTabFromAlignment = useCallback((tab: string) => {
+    setActiveTab(tab);
+  }, []);
+
   return (
     <ErrorBoundary>
       <div className="app-container">
@@ -76,6 +82,7 @@ export const App: React.FC = () => {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
+          onOpenAlignmentModal={() => setIsAlignmentModalOpen(true)}
           hasApiKey={apiKey.trim().length > 0}
         />
 
@@ -143,6 +150,13 @@ export const App: React.FC = () => {
           onClose={() => setIsApiKeyModalOpen(false)}
           apiKey={apiKey}
           onSaveApiKey={handleSaveApiKey}
+        />
+
+        {/* Problem Statement Alignment Modal */}
+        <ProblemAlignmentModal
+          isOpen={isAlignmentModalOpen}
+          onClose={() => setIsAlignmentModalOpen(false)}
+          onNavigateTab={handleNavigateTabFromAlignment}
         />
       </div>
     </ErrorBoundary>

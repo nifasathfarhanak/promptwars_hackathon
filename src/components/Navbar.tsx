@@ -7,13 +7,15 @@ import {
   CheckSquare, 
   BookOpen, 
   Key, 
-  ShieldAlert 
+  ShieldAlert,
+  Sparkles
 } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onOpenApiKeyModal: () => void;
+  onOpenAlignmentModal?: () => void;
   hasApiKey: boolean;
 }
 
@@ -21,6 +23,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   onOpenApiKeyModal,
+  onOpenAlignmentModal,
   hasApiKey
 }) => {
   return (
@@ -100,15 +103,28 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
       </nav>
 
-      {/* Sidebar Footer with API Key Trigger */}
-      <div className="sidebar-footer">
+      {/* Sidebar Footer with Alignment Matrix & API Key Trigger */}
+      <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {onOpenAlignmentModal && (
+          <button 
+            className="btn-secondary"
+            onClick={onOpenAlignmentModal}
+            title="Problem Statement Alignment Matrix"
+            style={{ width: '100%', justifyContent: 'center', borderColor: '#bbf7d0', color: '#166534', backgroundColor: '#f0fdf4' }}
+          >
+            <Sparkles size={14} style={{ color: '#16a34a' }} />
+            <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>Alignment Matrix (7/7)</span>
+          </button>
+        )}
+
         <button 
           className="btn-secondary"
           onClick={onOpenApiKeyModal}
           title="Configure Gemini API Key"
+          style={{ width: '100%', justifyContent: 'center' }}
         >
-          <Key size={15} />
-          <span>{hasApiKey ? 'Gemini API Active' : 'Gemini API Settings'}</span>
+          <Key size={14} />
+          <span style={{ fontSize: '0.8rem' }}>{hasApiKey ? 'Gemini API Active' : 'Gemini API Settings'}</span>
         </button>
       </div>
     </aside>
