@@ -144,10 +144,10 @@ LexiGuard AI uses a hybrid GenAI architecture combining real-time LLM inference 
 - **Sub-Second Production Build**: Vite 5 produces an optimized production bundle in ~900ms.
 
 ### 4. Testing 🧪
-- **54 Unit & Component Tests** across 6 comprehensive test suites using Vitest + React Testing Library + happy-dom.
+- **57 Unit & Component Tests** across 6 comprehensive test suites using Vitest + React Testing Library + happy-dom.
 - **Coverage**:
   1. `aiLegalEngine.test.ts` (26 tests) — Prompt injection sanitizer, NLP heuristic analyzer, risk score calculation, contract comparator, lawyer brief generator, sample document data integrity.
-  2. `Components.test.tsx` (8 tests) — ErrorBoundary crash protection, Navbar navigation tabs, ApiKeyModal state management.
+  2. `Components.test.tsx` (11 tests) — ErrorBoundary crash protection, Navbar navigation tabs, ApiKeyModal state management, ProblemAlignmentModal use-case mapping.
   3. `ContractComparison.test.tsx` (4 tests) — Side-by-side diffing, base/comparative doc selection, risk shift analysis.
   4. `LegalGlossary.test.tsx` (4 tests) — Glossary rendering, search input, term card expansions.
   5. `ActionCenter.test.tsx` (5 tests) — Obligation checklist toggles, lawyer brief compilation, negotiation email draft.
