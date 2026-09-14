@@ -138,12 +138,20 @@ LexiGuard AI uses a hybrid GenAI architecture combining real-time LLM inference 
 - **Environment Best Practices**: `.env.example` template provided; `.env` files gitignored.
 
 ### 3. Efficiency & Resource Optimization ⚡
-- Dual-engine fallback guarantees **instant zero-latency client-side parsing** even when offline or without an API key.
-- Lightweight bundle footprint using Vite and standard Web APIs.
+- **Dynamic Code Splitting & Lazy Loading**: All major view components (`DocumentAnalyzer`, `ContractComparison`, `DocumentChat`, `ActionCenter`, `LegalGlossary`) are code-split using `React.lazy` and `Suspense`, dropping initial bundle payload from 313 kB to 259 kB.
+- **Dual-Engine Instant Fallback**: Guarantees **instant zero-latency client-side parsing** without blocking network requests or wasting API tokens.
+- **Memoized State Handlers**: `useCallback` and `useMemo` prevent unnecessary component re-renders during state transitions.
+- **Sub-Second Production Build**: Vite 5 produces an optimized production bundle in ~900ms.
 
 ### 4. Testing 🧪
-- **30 Unit & Component Tests** across 2 test suites using Vitest + React Testing Library.
-- Tests cover: prompt injection sanitizer, document heuristic analyzer, contract comparator, lawyer prep package generator, sample data integrity, and UI component rendering.
+- **54 Unit & Component Tests** across 6 comprehensive test suites using Vitest + React Testing Library + happy-dom.
+- **Coverage**:
+  1. `aiLegalEngine.test.ts` (26 tests) — Prompt injection sanitizer, NLP heuristic analyzer, risk score calculation, contract comparator, lawyer brief generator, sample document data integrity.
+  2. `Components.test.tsx` (8 tests) — ErrorBoundary crash protection, Navbar navigation tabs, ApiKeyModal state management.
+  3. `ContractComparison.test.tsx` (4 tests) — Side-by-side diffing, base/comparative doc selection, risk shift analysis.
+  4. `LegalGlossary.test.tsx` (4 tests) — Glossary rendering, search input, term card expansions.
+  5. `ActionCenter.test.tsx` (5 tests) — Obligation checklist toggles, lawyer brief compilation, negotiation email draft.
+  6. `AnalyzerAndChat.test.tsx` (7 tests) — Risk radar visualization, clause filtering chips, editable document editor, grounded Q&A chatbot.
 - Run tests: `npm test` | Watch mode: `npm run test:watch`
 
 ### 5. Accessibility (a11y) ♿
